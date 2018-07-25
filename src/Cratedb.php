@@ -293,4 +293,47 @@ class Cratedb
 		
 	}
 
+    function get_tables( $include_system_tables = false )
+    {
+        $ignore_tables = ($include_system_tables) ? [] : ['information_schema', 'pg_catalog', 'sys'];
+        $tables = [];
+
+        $schemas = $this->query("show schemas");
+
+        foreach($schemas as $s)
+        {
+            if ( array_search($s['schema_name'], $ignore_tables) !== false )
+                continue;
+
+            $_tables = $this->query("SHOW TABLES IN {$s['schema_name']}");
+            foreach($_tables as $t)
+            {
+                $tables[] = $s['schema_name'] . "." . $t['table_name'];
+            }
+                
+        }
+
+        return $tables;
+    }
+
+    function show_create_table( $tablename )
+    {
+        $res = $this->query("SHOW CREATE TABLE {$tablename}");
+        return array_pop( $res[0] );
+    }
+
+    function get_table_fields( $tablename )
+    {
+        $row = $this->query("SELECT * FROM {$tablename} LIMIT 1");
+        if ( empty($row) )
+            die("ERROR! Cannot rebuild empty table\n");
+
+        print_r( $row );
+
+        $fields = [];
+        foreach( $row[0] as $name =>$value )
+            $fields[] = $name;
+
+        return $fields;
+    }
 }
