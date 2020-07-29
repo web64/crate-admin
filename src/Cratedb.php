@@ -32,7 +32,7 @@ class Cratedb
         return str_replace("'", "''", $str );
     }
 
-    function query($sql, $fields = false)
+    function query($sql, $fields = null)
     {
         if ( !empty( $fields )  && is_array($fields) )
         {
@@ -279,7 +279,7 @@ class Cratedb
 	
 	function get_ids($item_a, $id_field)
 	{
-		$ids 		= array();
+		$ids = [];
 		
 		if ( empty($item_a) )  return $ids;
 		
@@ -335,5 +335,68 @@ class Cratedb
             $fields[] = $name;
 
         return $fields;
-    }
+	}
+	
+	function has_rows( $tablename )
+	{
+		$row = $this->query("SELECT * FROM {$tablename} LIMIT 1");
+		if ( empty($row) ) {
+			return false;
+		}
+		
+		return true;
+	}
+
+	function copy($from_table, $to_table)
+	{
+		if (!$this->has_rows( $from_table ))
+		{
+			echo "Skipping {$from_table} - no data to copy\n";
+			return;
+		}
+
+		$fields = $this->get_table_fields( $from_table );
+		print_r($fields);
+		
+		$field_list = implode(", ", $fields);
+
+		$sql_insert_data = "INSERT INTO {$to_table} ( {$field_list} )
+			(SELECT {$field_list} FROM {$from_table} );";
+
+		echo $sql_insert_data . PHP_EOL;
+		
+		$res = $this->query( $sql_insert_data );
+		print_r( $res );
+	}
+
+	function swap_table($from_table, $to_table)
+	{
+		$sql = "ALTER CLUSTER SWAP TABLE $from_table TO $to_table;";
+		echo $sql . PHP_EOL;
+		$this->query( $sql );
+	}
+
+	function refresh_table($table)
+	{
+		echo " REFRESH TABLE {$table}\n";
+		return $this->query( "REFRESH TABLE {$table}\n" );
+	}
+
+	function drop_table($table)
+	{
+		echo "DROP TABLE {$table}\n";
+		return $this->query( "DROP TABLE {$table}" );
+	}
+
+	function create_temp_table($table, $tmp_table)
+	{
+		$sql_create_table = $this->show_create_table( $table );
+		$rebuildtable_quotes = '"'. str_replace(".", '"."', $table ) . '"';
+		$tmp_table_quotes = '"'. str_replace(".", '"."', $tmp_table) . '"';
+		$sql_create_table = str_replace("CREATE TABLE IF NOT EXISTS {$rebuildtable_quotes}", "CREATE TABLE IF NOT EXISTS {$tmp_table_quotes}", $sql_create_table);
+		echo $sql_create_table . PHP_EOL;;
+	
+		$res = $this->query($sql_create_table);
+		//print_r( $res );
+	}
 }
